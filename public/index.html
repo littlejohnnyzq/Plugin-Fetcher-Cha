@@ -47,6 +47,7 @@
             border-collapse: collapse;
             margin-top: 4px;
             width: 100%;
+            flex: 1;
         }
 
         #data-table th,
@@ -55,6 +56,7 @@
             padding: 8px;
             max-height: 26px;
             text-align: left;
+            flex: 1;
         }
 
         #data-table th {
@@ -149,8 +151,7 @@
                         <th></th>
                         <th>插件名</th>
                         <th>用户数</th>
-                        <th style="border-right: none; white-space: nowrap;">日增</th>
-                        <th style="border-left: none;"></th>
+                        <th style="white-space: nowrap;">日增</th>
                     </tr>
                 </thead>
                 <tbody id="data-body">
@@ -379,14 +380,15 @@
                 }
                 row.appendChild(DoDCountCell);
 
-                const DoDPercentCell = document.createElement('td');
-                DoDPercentCell.textContent = entry.DoDPercent;
-                row.appendChild(DoDPercentCell);
+                // const DoDPercentCell = document.createElement('td');
+                // DoDPercentCell.textContent = entry.DoDPercent;
+                // row.appendChild(DoDPercentCell);
 
                 dataBody.appendChild(row);
                 if (entry.name.includes('Canned') || entry.name.includes('Moonvy')) {
                     row.style.backgroundColor = '#eee8ff';
                 }
+
             });
         }
         function deleteCurrentEntry(year, month, day, time) {
