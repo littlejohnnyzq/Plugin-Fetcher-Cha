@@ -54,8 +54,7 @@ function storeDataAsEndOfDay(pluginData, previousDayTime) {
         fs.mkdirSync(dirPath, { recursive: true });
     }
 
-    // 写入数据到文件
-    fs.writeFileSync(filePath, JSON.stringify(pluginData, null, 2));
+    // 写入数据到文件readDataByDateTime
 }
 
 function findPreviousData(currentTime) {
@@ -147,7 +146,7 @@ function readDataByDateTime(year, month, day, time) {
     }
 }
 
-app.get('/data', async (req, res) => {
+app.get('/fetch-plugin-data', async (req, res) => {
     try {
         await fetchData();
         res.json({ success: true });
