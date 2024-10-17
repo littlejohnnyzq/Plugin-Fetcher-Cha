@@ -147,7 +147,7 @@ function readDataByDateTime(year, month, day, time) {
     }
 }
 
-app.get('/fetch-plugin-data', async (req, res) => {
+app.get('/data', async (req, res) => {
     try {
         await fetchData();
         res.json({ success: true });
