@@ -44,11 +44,11 @@ function storeDataAsEndOfDay(pluginData, previousDayTime) {
     const year = previousDayTime.getFullYear().toString();
     const month = (previousDayTime.getMonth() + 1).toString().padStart(2, '0');
     const day = previousDayTime.getDate().toString().padStart(2, '0');
-    
+
     // 使用previousDayTime年月日作为存储路径
     const dirPath = path.join(__dirname, 'data', year, month, day);
     const filePath = path.join(dirPath, `24-00.json`); // 特意存为“24:00”标记一天的结束
-    
+
     // 确保目录存在，如果不存在则递归创建
     if (!fs.existsSync(dirPath)) {
         fs.mkdirSync(dirPath, { recursive: true });
@@ -160,17 +160,18 @@ async function fetchPluginData(previousData, attempt = 1) {
     console.log('Starting Puppeteer');
 
     try {
-        const url1 = 'https://www.figma.com/community/search?resource_type=plugins&sort_by=relevancy&query=canned&editor_type=all&price=all&creators=all';
-        const url2 = 'https://www.figma.com/community/tag/code%20snippets/plugins';
+        const url1 = 'https://www.figma.com/community/search?query=canned%20style&resource_type=plugins&editor_type=all&price=all&sort_by=relevancy&creators=all';
+        const url2 = 'https://www.figma.com/community/search?query=snippet&resource_type=plugins&editor_type=all&price=all&sort_by=relevancy&creators=all';
+        const url3 = 'https://www.figma.com/community/search?query=%E8%93%9D%E6%B9%96&resource_type=plugins&editor_type=all&price=all&sort_by=relevancy&creators=all';
         const url4 = 'https://www.figma.com/community/search?resource_type=plugins&sort_by=relevancy&query=zeplin+team+across&editor_type=all&price=all&creators=all';
-        const url3 = 'https://www.figma.com/community/search?resource_type=plugins&sort_by=relevancy&query=Lanhu+%C2%B7+%E8%93%9D%E6%B9%96&editor_type=all&price=all&creators=all';
+
         // Fetch data from the first URL
         const data1 = await fetchPageData(url1, previousData);
         const data2 = await fetchPageData(url2, previousData);
         const data3 = await fetchPageData(url3, previousData);
         const data4 = await fetchPageData(url4, previousData);
         // Combine data from both pages
-        const pluginData = data1.concat(data2,data3,data4);
+        const pluginData = data1.concat(data2, data3, data4);
 
         console.log('Puppeteer finished');
         return pluginData;
@@ -206,23 +207,26 @@ async function fetchPageData(url, previousData) {
             if (data.length >= 6) break;
 
             const name = await plugin.$eval('.plugin_row--pluginRowTitle--GOOmC.text--fontPos13--xW8hS.text--_fontBase--QdLsd', el => el.innerText);
-            const usersElement = await plugin.$('.plugin_row--toolTip--Uxz1M.dropdown--dropdown--IX0tU.text--fontPos14--OL9Hp.text--_fontBase--QdLsd.plugin_row--toolTipPositioning--OgVuh');
+            const targetPlugin = name.includes('Lanhu') || name.includes('Moonvy') || name.includes('CoDesign') || name.includes('Zeplin') || name.includes('Mock') || name.includes('Canned')
+            if (targetPlugin) {
+                const usersElement = await plugin.$('.plugin_row--toolTip--Uxz1M.dropdown--dropdown--IX0tU.text--fontPos14--OL9Hp.text--_fontBase--QdLsd.plugin_row--toolTipPositioning--OgVuh');
 
-            let preciseUsers = 'N/A';
-            if (usersElement) {
-                await usersElement.hover(); // Use hover from Puppeteer
-                await new Promise(resolve => setTimeout(resolve, 400)); // Manually create a timeout
-                preciseUsers = await usersElement.$eval('.dropdown--dropdownContents--BqcL5', el => el.innerText.match(/\d+/g).join(''));
+                let preciseUsers = 'N/A';
+                if (usersElement) {
+                    await usersElement.hover(); // Use hover from Puppeteer
+                    await new Promise(resolve => setTimeout(resolve, 400)); // Manually create a timeout
+                    preciseUsers = await usersElement.$eval('.dropdown--dropdownContents--BqcL5', el => el.innerText.match(/\d+/g).join(''));
+                }
+
+                const currentUsers = parseInt(preciseUsers);
+                const sortName = name.slice(0, 20);
+                const previousPlugin = previousData ? previousData.find(p => p.name.slice(0, 20) === sortName) : null;
+                const previousUsers = previousPlugin ? parseInt(previousPlugin.users) : null;
+                const DoDCount = previousUsers ? currentUsers - previousUsers : '--';
+                const DoDPercent = previousUsers ? ((DoDCount / previousUsers) * 100).toFixed(2) + '%' : '--';
+
+                data.push({ name, users: preciseUsers, DoDCount: DoDCount.toString(), DoDPercent });
             }
-
-            const currentUsers = parseInt(preciseUsers);
-            const sortName = name.slice(0, 20);
-            const previousPlugin = previousData ? previousData.find(p => p.name.slice(0, 20) === sortName) : null;
-            const previousUsers = previousPlugin ? parseInt(previousPlugin.users) : null;
-            const DoDCount = previousUsers ? currentUsers - previousUsers : '--';
-            const DoDPercent = previousUsers ? ((DoDCount / previousUsers) * 100).toFixed(2) + '%' : '--';
-
-            data.push({ name, users: preciseUsers, DoDCount: DoDCount.toString(), DoDPercent });
         }
         return data;
     } catch (error) {
