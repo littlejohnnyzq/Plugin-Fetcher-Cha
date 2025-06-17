@@ -152,6 +152,8 @@
                         <th>插件名</th>
                         <th>用户数</th>
                         <th style="white-space: nowrap;">日增</th>
+                        <th>点赞</th>
+                        <th style="white-space: nowrap;">日增</th>
                     </tr>
                 </thead>
                 <tbody id="data-body">
@@ -380,9 +382,21 @@
                 }
                 row.appendChild(DoDCountCell);
 
-                // const DoDPercentCell = document.createElement('td');
-                // DoDPercentCell.textContent = entry.DoDPercent;
-                // row.appendChild(DoDPercentCell);
+                // 添加点赞数
+                const likesCell = document.createElement('td');
+                likesCell.textContent = entry.likes;
+                row.appendChild(likesCell);
+
+                // 添加点赞日增
+                const DoDLikesCell = document.createElement('td');
+                DoDLikesCell.textContent = entry.DoDLikes;
+                const DoDLikes = parseInt(entry.DoDLikes, 10);
+                if (DoDLikes >= 100 && DoDLikes < 200) {
+                    DoDLikesCell.style.color = '#f06010';
+                } else if (DoDLikes >= 200) {
+                    DoDLikesCell.style.color = '#bb0060';
+                }
+                row.appendChild(DoDLikesCell);
 
                 dataBody.appendChild(row);
                 if (entry.name.includes('Canned') || entry.name.includes('Moonvy')) {
