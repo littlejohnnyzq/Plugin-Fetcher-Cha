@@ -221,7 +221,7 @@ async function fetchPluginData(previousData) {
                                    name.includes('mock') || 
                                    name.includes('canned');
                     if (isTarget) {
-                        console.log(`Found target plugin: ${plugin.model.name} (ID: ${plugin.model.id})`);
+                        console.log(`Found target plugin: ${plugin.model.name}`);
                     }
                     return isTarget;
                 });
@@ -229,7 +229,6 @@ async function fetchPluginData(previousData) {
                 console.log(`\nFound ${targetPlugins.length} target plugins for query: ${query}`);
                 if (targetPlugins.length > 0) {
                     console.log('Target plugins:', JSON.stringify(targetPlugins.map(p => ({
-                        id: p.model.id,
                         name: p.model.name,
                         user_count: p.model.user_count,
                         like_count: p.model.like_count
@@ -239,39 +238,19 @@ async function fetchPluginData(previousData) {
                 // 处理每个插件的数据
                 const processedPlugins = targetPlugins.map(plugin => {
                     const currentUsers = plugin.model.user_count || 0;
-                    const currentLikes = plugin.model.like_count || 0;
-                    const pluginId = plugin.model.id;
-                    const previousPlugin = previousData ? previousData.find(p => p.id === pluginId) : null;
-                    
-                    if (previousPlugin) {
-                        console.log(`Found previous data for plugin ${plugin.model.name}:`, {
-                            current_users: currentUsers,
-                            previous_users: previousPlugin.users,
-                            current_likes: currentLikes,
-                            previous_likes: previousPlugin.likes
-                        });
-                    } else {
-                        console.log(`No previous data found for plugin ${plugin.model.name}`);
-                    }
-
+                    const sortName = plugin.model.name.slice(0, 20);
+                    const previousPlugin = previousData ? previousData.find(p => p.name.slice(0, 20) === sortName) : null;
                     const previousUsers = previousPlugin ? parseInt(previousPlugin.users) : null;
-                    const previousLikes = previousPlugin ? parseInt(previousPlugin.likes) : null;
-                    
                     const DoDCount = previousUsers ? currentUsers - previousUsers : '--';
                     const DoDPercent = previousUsers ? ((DoDCount / previousUsers) * 100).toFixed(2) + '%' : '--';
-                    
-                    const DoDLikes = previousLikes ? currentLikes - previousLikes : '--';
-                    const DoDLikesPercent = previousLikes ? ((DoDLikes / previousLikes) * 100).toFixed(2) + '%' : '--';
 
                     return {
-                        id: pluginId,
+                        id: plugin.model.id,
                         name: plugin.model.name,
                         users: currentUsers.toString(),
-                        likes: currentLikes.toString(),
+                        likes: plugin.model.like_count.toString(),
                         DoDCount: DoDCount.toString(),
-                        DoDPercent,
-                        DoDLikes: DoDLikes.toString(),
-                        DoDLikesPercent
+                        DoDPercent
                     };
                 });
 
