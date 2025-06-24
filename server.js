@@ -170,121 +170,123 @@ async function fetchPluginData(previousData) {
         for (const query of searchQueries) {
             console.log(`\n=== Processing query: ${query} ===`);
             const url = `https://www.figma.com/api/search/resources?query=${encodeURIComponent(query)}&price=all&creators=all&sort_by=relevancy&resource_type=plugin`;
-            
-            try {
-                console.log(`Making API request to: ${url}`);
-                const response = await axios.get(url, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-                        'Accept-Language': 'en-US,en;q=0.9',
-                        'Accept': 'application/json',
-                        'Referer': 'https://www.figma.com/',
-                        'Origin': 'https://www.figma.com'
-                    },
-                    timeout: 10000
-                });
-
-                console.log('API Response status:', response.status);
-                
-                if (!response.data) {
-                    console.error('No data in response');
-                    continue;
-                }
-
-                // 检查响应数据结构
-                console.log('Response data structure:', Object.keys(response.data));
-                
-                // 检查是否有错误
-                if (response.data.error) {
-                    console.error('API Error:', response.data.error);
-                    console.error('API Status:', response.data.status);
-                    continue;
-                }
-
-                // 检查是否有结果
-                if (!response.data.meta || !response.data.meta.results) {
-                    console.error('No results in response. Full response:', JSON.stringify(response.data, null, 2));
-                    continue;
-                }
-
-                // 获取插件数据
-                const plugins = response.data.meta.results;
-                console.log(`\nFound ${plugins.length} plugins for query "${query}"`);
-                
-                // 过滤出我们关注的插件
-                const targetPlugins = plugins.filter(plugin => {
-                    const name = plugin.model.name.toLowerCase();
-                    const isTarget = name.includes('lanhu') || 
-                                   name.includes('moonvy') || 
-                                   name.includes('codesign') || 
-                                   name.includes('zeplin') || 
-                                   name.includes('mock') || 
-                                   name.includes('canned');
-                    if (isTarget) {
-                        console.log(`Found target plugin: ${plugin.model.name} (ID: ${plugin.model.id})`);
-                    }
-                    return isTarget;
-                });
-
-                console.log(`\nFound ${targetPlugins.length} target plugins for query: ${query}`);
-                if (targetPlugins.length > 0) {
-                    console.log('Target plugins:', JSON.stringify(targetPlugins.map(p => ({
-                        id: p.model.id,
-                        name: p.model.name,
-                        user_count: p.model.user_count,
-                        like_count: p.model.like_count
-                    })), null, 2));
-                }
-
-                // 处理每个插件的数据
-                const processedPlugins = targetPlugins.map(plugin => {
-                    const currentUsers = plugin.model.user_count || 0;
-                    const currentLikes = plugin.model.like_count || 0;
-                    const pluginId = plugin.model.id;
-                    const previousPlugin = previousData ? previousData.find(p => p.id === pluginId) : null;
-                    
-                    if (previousPlugin) {
-                        console.log(`Found previous data for plugin ${plugin.model.name}:`, {
-                            current_users: currentUsers,
-                            previous_users: previousPlugin.users,
-                            current_likes: currentLikes,
-                            previous_likes: previousPlugin.likes
-                        });
+            let attempt = 0;
+            let response = null;
+            let success = false;
+            while (attempt < 10 && !success) {
+                try {
+                    console.log(`Making API request to: ${url} (attempt ${attempt + 1})`);
+                    response = await axios.get(url, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                            'Accept-Language': 'en-US,en;q=0.9',
+                            'Accept': 'application/json',
+                            'Referer': 'https://www.figma.com/',
+                            'Origin': 'https://www.figma.com'
+                        },
+                        timeout: 10000
+                    });
+                    if (response.data && response.data.meta && Array.isArray(response.data.meta.results) && response.data.meta.results.length > 0) {
+                        success = true;
                     } else {
-                        console.log(`No previous data found for plugin ${plugin.model.name}`);
+                        console.warn('No valid data, will retry...');
+                        await new Promise(r => setTimeout(r, 400));
                     }
-
-                    const previousUsers = previousPlugin ? parseInt(previousPlugin.users) : null;
-                    const previousLikes = previousPlugin ? parseInt(previousPlugin.likes) : null;
-                    
-                    const DoDCount = previousUsers ? currentUsers - previousUsers : '--';
-                    const DoDPercent = previousUsers ? ((DoDCount / previousUsers) * 100).toFixed(2) + '%' : '--';
-                    
-                    const DoDLikes = previousLikes ? currentLikes - previousLikes : '--';
-                    const DoDLikesPercent = previousLikes ? ((DoDLikes / previousLikes) * 100).toFixed(2) + '%' : '--';
-
-                    return {
-                        id: pluginId,
-                        name: plugin.model.name,
-                        users: currentUsers.toString(),
-                        likes: currentLikes.toString(),
-                        DoDCount: DoDCount.toString(),
-                        DoDPercent,
-                        DoDLikes: DoDLikes.toString(),
-                        DoDLikesPercent
-                    };
-                });
-
-                allPlugins = allPlugins.concat(processedPlugins);
-            } catch (error) {
-                console.error(`Error fetching data for query "${query}":`, error.message);
-                if (error.response) {
-                    console.error('Response status:', error.response.status);
-                    console.error('Response headers:', JSON.stringify(error.response.headers, null, 2));
-                    console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+                } catch (error) {
+                    console.error(`Error fetching data for query "${query}" (attempt ${attempt + 1}):`, error.message);
+                    if (error.response) {
+                        console.error('Response status:', error.response.status);
+                        console.error('Response headers:', JSON.stringify(error.response.headers, null, 2));
+                        console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+                    }
+                    await new Promise(r => setTimeout(r, 400));
                 }
+                attempt++;
+            }
+            if (!success) {
+                console.error(`Failed to fetch valid data for query "${query}" after 10 attempts.`);
                 continue;
             }
+
+            // 检查响应数据结构
+            console.log('Response data structure:', Object.keys(response.data));
+            
+            // 检查是否有错误
+            if (response.data.error) {
+                console.error('API Error:', response.data.error);
+                console.error('API Status:', response.data.status);
+                continue;
+            }
+
+            // 获取插件数据
+            const plugins = response.data.meta.results;
+            console.log(`\nFound ${plugins.length} plugins for query "${query}"`);
+            
+            // 过滤出我们关注的插件
+            const targetPlugins = plugins.filter(plugin => {
+                const name = plugin.model.name.toLowerCase();
+                const isTarget = name.includes('lanhu') || 
+                               name.includes('moonvy') || 
+                               name.includes('codesign') || 
+                               name.includes('zeplin') || 
+                               name.includes('mock') || 
+                               name.includes('canned');
+                if (isTarget) {
+                    console.log(`Found target plugin: ${plugin.model.name} (ID: ${plugin.model.id})`);
+                }
+                return isTarget;
+            });
+
+            console.log(`\nFound ${targetPlugins.length} target plugins for query: ${query}`);
+            if (targetPlugins.length > 0) {
+                console.log('Target plugins:', JSON.stringify(targetPlugins.map(p => ({
+                    id: p.model.id,
+                    name: p.model.name,
+                    user_count: p.model.user_count,
+                    like_count: p.model.like_count
+                })), null, 2));
+            }
+
+            // 处理每个插件的数据
+            const processedPlugins = targetPlugins.map(plugin => {
+                const currentUsers = plugin.model.user_count || 0;
+                const currentLikes = plugin.model.like_count || 0;
+                const pluginId = plugin.model.id;
+                const previousPlugin = previousData ? previousData.find(p => p.id === pluginId) : null;
+                
+                if (previousPlugin) {
+                    console.log(`Found previous data for plugin ${plugin.model.name}:`, {
+                        current_users: currentUsers,
+                        previous_users: previousPlugin.users,
+                        current_likes: currentLikes,
+                        previous_likes: previousPlugin.likes
+                    });
+                } else {
+                    console.log(`No previous data found for plugin ${plugin.model.name}`);
+                }
+
+                const previousUsers = previousPlugin ? parseInt(previousPlugin.users) : null;
+                const previousLikes = previousPlugin ? parseInt(previousPlugin.likes) : null;
+                
+                const DoDCount = previousUsers ? currentUsers - previousUsers : '--';
+                const DoDPercent = previousUsers ? ((DoDCount / previousUsers) * 100).toFixed(2) + '%' : '--';
+                
+                const DoDLikes = previousLikes ? currentLikes - previousLikes : '--';
+                const DoDLikesPercent = previousLikes ? ((DoDLikes / previousLikes) * 100).toFixed(2) + '%' : '--';
+
+                return {
+                    id: pluginId,
+                    name: plugin.model.name,
+                    users: currentUsers.toString(),
+                    likes: currentLikes.toString(),
+                    DoDCount: DoDCount.toString(),
+                    DoDPercent,
+                    DoDLikes: DoDLikes.toString(),
+                    DoDLikesPercent
+                };
+            });
+
+            allPlugins = allPlugins.concat(processedPlugins);
         }
 
         console.log(`\n=== Final Results ===`);
@@ -360,4 +362,17 @@ function deleteTimeData(year, month, day, time) {
 // 添加一个简单的测试路由
 app.get('/test', (req, res) => {
     res.json({ status: 'Server is running' });
+});
+
+app.delete('/delete-time-data', (req, res) => {
+    const { year, month, day, time } = req.query;
+    if (!year || !month || !day || !time) {
+        return res.status(400).json({ success: false, error: 'Missing parameters' });
+    }
+    const result = deleteTimeData(year, month, day, time);
+    if (result) {
+        res.json({ success: true });
+    } else {
+        res.status(404).json({ success: false, error: 'Data not found' });
+    }
 });
